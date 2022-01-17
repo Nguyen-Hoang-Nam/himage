@@ -10,6 +10,23 @@ use crate::utils::get_text_from_alpha;
 
 mod utils;
 
+fn get_cipher(mut key: String) -> Cbc<Aes128, Pkcs7> {
+    let key_len = key.len();
+    if key_len > 16 {
+        panic!("Too long secret key")
+    } else if key_len < 16 {
+        for _ in 0..(16 - key_len) {
+            key = key + "0";
+        }
+    }
+
+    type Aes128Cbc = Cbc<Aes128, Pkcs7>;
+
+    let cipher = Aes128Cbc::new_from_slices(key.as_bytes(), key.as_bytes()).unwrap();
+
+    return cipher;
+}
+
 fn main() -> std::io::Result<()> {
     let matches = App::new("dot-image")
         .version("0.1.0")
@@ -59,48 +76,50 @@ fn main() -> std::io::Result<()> {
         _ => true,
     };
 
-    let mut key = match matches.value_of("key") {
+    let key = match matches.value_of("key") {
         Some(h) => h.to_string(),
-        None => panic!("Missing secret key"),
+        None => "".to_string(),
     };
-
-    let key_len = key.len();
-    if key_len > 16 {
-        panic!("Too long secret key")
-    } else if key_len < 16 {
-        for _ in 0..(16 - key_len) {
-            key = key + "0";
-        }
-    }
 
     let image = match ImageReader::open(image_path) {
         Ok(img) => img.decode().unwrap(),
         Err(_) => panic!("Can not open image"),
     };
 
-    type Aes128Cbc = Cbc<Aes128, Pkcs7>;
-
-    let cipher = Aes128Cbc::new_from_slices(key.as_bytes(), key.as_bytes()).unwrap();
-
     if decode {
         let result = get_text_from_alpha(&image);
         if result.is_empty() {
-            panic!("Does not have message");
+            println!("Image does not have any message");
+        } else {
+            let message_vec;
+            if key == "" {
+                message_vec = result;
+            } else {
+                let cipher = get_cipher(key);
+                message_vec = cipher.decrypt_vec(&result).unwrap();
+            }
+
+            println!("{}", String::from_utf8(message_vec.to_vec()).unwrap());
         }
-
-        let message = cipher.decrypt_vec(&result).unwrap();
-
-        println!("{}", String::from_utf8(message.to_vec()).unwrap());
     } else {
-        let mut buffer = [0u8; 32];
+        let result: image::RgbaImage;
+        if key == "" {
+            let message_u8 = message.as_bytes();
 
-        let message_bytes = message.as_bytes();
-        let pos = message_bytes.len();
-        buffer[..pos].copy_from_slice(message_bytes);
+            result = utils::save_text_to_alpha(&image, message_u8);
+        } else {
+            let mut buffer = [0u8; 32];
 
-        let ciphertext = cipher.encrypt(&mut buffer, pos).unwrap();
+            let message_bytes = message.as_bytes();
+            let pos = message_bytes.len();
+            buffer[..pos].copy_from_slice(message_bytes);
 
-        let result = utils::save_text_to_alpha(&image, ciphertext);
+            let cipher = get_cipher(key);
+
+            let message_u8 = cipher.encrypt(&mut buffer, pos).unwrap();
+
+            result = utils::save_text_to_alpha(&image, message_u8);
+        }
 
         let (width, height) = &image.dimensions();
 
