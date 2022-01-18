@@ -1,21 +1,42 @@
 use image::{DynamicImage, GenericImageView};
 
+fn number_to_vec(num: u32) -> Vec<u8> {
+    let mut result: Vec<u8> = Vec::new();
+    if num < 256 {
+        result.push(num as u8);
+    } else if num < 65536 {
+        result.push((0 | (num >> 8)) as u8);
+        result.push((0 | (num & 0xFF)) as u8);
+    } else if num < 16777216 {
+        result.push((0 | (num >> 16)) as u8);
+        result.push((0 | ((num >> 8) & 0xFF)) as u8);
+        result.push((0 | (num & 0xFF)) as u8);
+    } else {
+        result.push((0 | (num >> 24)) as u8);
+        result.push((0 | ((num >> 16) & 0xFF)) as u8);
+        result.push((0 | ((num >> 8) & 0xFF)) as u8);
+        result.push((0 | (num & 0xFF)) as u8);
+    }
+
+    return result;
+}
+
 pub fn save_text_to_alpha(image: &DynamicImage, cipher_message: &[u8]) -> image::RgbaImage {
     let (width, height) = image.dimensions();
     let mut scale_rgba = image.to_rgba8();
 
     let cipher_message_len = cipher_message.len();
-    if cipher_message_len > 255 {
-        panic!("Not support longer than 255 characters");
-    }
+
+    let mut cipher_len_vec = number_to_vec(cipher_message_len as u32);
+    cipher_len_vec.push(0);
 
     let mut i = 0;
     for y in 0..height {
         for x in 0..width {
             let alpha: u8;
 
-            if i == 0 {
-                alpha = cipher_message_len as u8;
+            if i < cipher_len_vec.len() {
+                alpha = cipher_len_vec[i];
             } else {
                 alpha = cipher_message[i - 1];
             }
@@ -30,7 +51,7 @@ pub fn save_text_to_alpha(image: &DynamicImage, cipher_message: &[u8]) -> image:
             scale_rgba.put_pixel(x, y, image::Rgba(new_pixel));
 
             i += 1;
-            if i > cipher_message_len {
+            if i > cipher_message_len + cipher_len_vec.len() {
                 return scale_rgba;
             }
         }
