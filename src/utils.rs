@@ -21,6 +21,25 @@ fn number_to_vec(num: u32) -> Vec<u8> {
     return result;
 }
 
+fn vec_to_num(num_vec: &Vec<u8>) -> u32 {
+    let mut result: u32 = 0;
+
+    let mut i = 1;
+    let mut time = 1;
+    for num in num_vec {
+        if i > 4 {
+            break;
+        }
+
+        result = (*num as u32) * time;
+
+        time *= 256;
+        i += 1;
+    }
+
+    return result;
+}
+
 pub fn save_text_to_alpha(image: &DynamicImage, cipher_message: &[u8]) -> image::RgbaImage {
     let (width, height) = image.dimensions();
     let mut scale_rgba = image.to_rgba8();
@@ -65,15 +84,27 @@ pub fn get_text_from_alpha(image: &DynamicImage) -> Vec<u8> {
     let scale_rgba = image;
 
     let mut result = Vec::new();
+    let mut message_len = Vec::new();
+
+    let mut find_message_len = false;
 
     let mut i = 0;
+    let mut j = 0;
     let mut len = 0;
     for y in 0..height {
         for x in 0..width {
-            if i == 0 {
-                len = scale_rgba.get_pixel(x, y)[3];
+            let character = scale_rgba.get_pixel(x, y)[3];
+            if !find_message_len {
+                if character == 0 {
+                    find_message_len = true;
+                    len = vec_to_num(&message_len);
+                } else {
+                    message_len.push(character);
+                }
+
+                j += 1;
             } else {
-                if i <= len {
+                if i <= len + j {
                     result.push(scale_rgba.get_pixel(x, y)[3])
                 } else {
                     return result;
