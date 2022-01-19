@@ -50,14 +50,16 @@ pub fn save_text_to_alpha(image: &DynamicImage, cipher_message: &[u8]) -> image:
     cipher_len_vec.push(0);
 
     let mut i = 0;
+    let mut j = 0;
     for y in 0..height {
         for x in 0..width {
             let alpha: u8;
 
             if i < cipher_len_vec.len() {
                 alpha = cipher_len_vec[i];
+                j += 1;
             } else {
-                alpha = cipher_message[i - 1];
+                alpha = cipher_message[i - j];
             }
 
             let new_pixel = [
@@ -70,7 +72,7 @@ pub fn save_text_to_alpha(image: &DynamicImage, cipher_message: &[u8]) -> image:
             scale_rgba.put_pixel(x, y, image::Rgba(new_pixel));
 
             i += 1;
-            if i > cipher_message_len + cipher_len_vec.len() {
+            if i > cipher_message_len + j - 1 {
                 return scale_rgba;
             }
         }
@@ -104,7 +106,7 @@ pub fn get_text_from_alpha(image: &DynamicImage) -> Vec<u8> {
 
                 j += 1;
             } else {
-                if i <= len + j {
+                if i < len + j {
                     result.push(scale_rgba.get_pixel(x, y)[3])
                 } else {
                     return result;

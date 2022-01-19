@@ -108,7 +108,7 @@ fn main() -> std::io::Result<()> {
 
             result = utils::save_text_to_alpha(&image, message_u8);
         } else {
-            let mut buffer = [0u8; 32];
+            let mut buffer = [0u8; 200];
 
             let message_bytes = message.as_bytes();
             let pos = message_bytes.len();
@@ -116,6 +116,7 @@ fn main() -> std::io::Result<()> {
 
             let cipher = get_cipher(key);
 
+            // let message_u8 = cipher.encrypt(&mut buffer, pos).unwrap();
             let message_u8 = cipher.encrypt(&mut buffer, pos).unwrap();
 
             result = utils::save_text_to_alpha(&image, message_u8);
